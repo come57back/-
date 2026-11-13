@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق محادثات اللغة الفرنسية A1 التفاعلي المصور</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#2563eb',
+                            600: '#1d4ed8',
+                            700: '#1e40af',
+                            900: '#0f172a'
+                        }
+                    },
+                    fontFamily: {
+                        cairo: ['Cairo', 'sans-serif'],
+                        fr: ['Plus Jakarta Sans', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+        .font-fr {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        
+        /* Enforce LTR isolation for French text & tokens */
+        .fr-text-container {
+            direction: ltr !important;
+            text-align: left !important;
+            unicode-bidi: isolate;
+        }
+
+        /* Token word styling */
+        .word-token {
+            transition: all 0.15s ease;
+            cursor: pointer;
+            user-select: none;
+            direction: ltr !important;
+            display: inline-block;
+            unicode-bidi: isolate;
+        }
+        .word-token:hover {
+            background-color: #2563eb;
+            color: #ffffff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        /* Active highlight for playing dialogue line */
+        .turn-active {
+            border-right-color: #2563eb !important;
+            background-color: #eff6ff !important;
+            box-shadow: 0 6px 18px rgba(37, 99, 235, 0.15);
+            transform: scale(1.008);
+        }
+
+        /* Scene Hotspot Badge */
+        .hotspot-btn {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .hotspot-btn:hover {
+            transform: scale(1.1);
+            filter: brightness(1.15);
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 999px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col">
+
+    <!-- HEADER NAVIGATION BAR -->
+    <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-md border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-xl shadow-md font-bold">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-black text-white leading-tight flex items-center gap-2">
+                        <span>محادثات الفرنسية A1 المصورة</span>
+                        <span class="bg-amber-400 text-slate-950 text-[10px] font-black px-2.5 py-0.5 rounded-full font-fr">30 درس مصور</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">رسومات تعليمية تفاعلية + نقاط نطق بصرية + حوارات كاملة (10-12 رداً)</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button onclick="openSavedWordsModal()" class="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-2 transition shadow-xs">
+                    <i class="fa-solid fa-star text-amber-400 text-sm"></i>
+                    <span class="hidden sm:inline">قاموسي المحفوظ</span>
+                    <span id="saved-words-badge" class="bg-amber-400 text-slate-950 px-2 py-0.2 rounded-full font-black text-[10px]">0</span>
+                </button>
+                
+                <button onclick="toggleMobileSidebar()" class="lg:hidden bg-slate-800 text-slate-300 p-2.5 rounded-xl border border-slate-700">
+                    <i class="fa-solid fa-bars text-lg"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- SIDEBAR LESSON SELECTOR (4 COLS) -->
+        <aside id="sidebar" class="lg:col-span-4 bg-white rounded-3xl border border-slate-200 shadow-sm p-4 flex flex-col h-[calc(100vh-100px)] sticky top-20 hidden lg:flex">
+            
+            <div class="mb-3">
+                <label class="text-xs font-bold text-slate-500 block mb-1">اختر الوحدة التعليمية المصورة:</label>
+                <select id="unit-filter" onchange="filterConversations()" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="ALL">جميع الدروس الـ 30 (حوارات + مشاهد تفاعلية)</option>
+                    <option value="U1">الوحدة 1: التعارف والتحيات (1 - 4)</option>
+                    <option value="U2">الوحدة 2: المقهى والمطعم والمخبز (5 - 8)</option>
+                    <option value="U3">الوحدة 3: التسوق والمتاجر (9 - 12)</option>
+                    <option value="U4">الوحدة 4: المواصلات والاتجاهات (13 - 16)</option>
+                    <option value="U5">الوحدة 5: الفندق والسفر والمطار (17 - 20)</option>
+                    <option value="U6">الوحدة 6: الصحة والطوارئ والعيادة (21 - 24)</option>
+                    <option value="U7">الوحدة 7: السكن والحياة اليومية (25 - 28)</option>
+                    <option value="U8">الوحدة 8: العمل والدراسة والوداع (29 - 30)</option>
+                </select>
+            </div>
+
+            <div class="relative mb-3">
+                <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="search-conv" oninput="filterConversations()" placeholder="ابحث عن درس، موضوع، أو مفردة..." 
+                    class="w-full pr-9 pl-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <!-- Conversations Scroll List -->
+            <div id="conv-list" class="flex-grow overflow-y-auto space-y-2 pr-1">
+                <!-- Dynamic Items -->
+            </div>
+
+            <!-- Progress Footer -->
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span class="font-bold">مستوى التقدم:</span>
+                <span id="progress-text" class="font-black text-blue-600">0 / 30 مكتملة</span>
+            </div>
+        </aside>
+
+        <!-- MAIN LESSON VIEW (8 COLS) -->
+        <main class="lg:col-span-8 flex flex-col space-y-5">
+
+            <!-- MAIN LESSON HEADER & AUDIO BAR -->
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="relative bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-900 text-white p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div class="space-y-2 z-10 text-right w-full md:w-2/3">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span id="conv-unit-badge" class="bg-blue-600 text-white text-[11px] font-bold px-3 py-0.5 rounded-full shadow-xs">الوحدة</span>
+                            <span id="conv-turns-badge" class="bg-amber-400 text-slate-950 text-xs font-black px-2.5 py-0.5 rounded-full">10-12 حواراً كاملاً</span>
+                        </div>
+                        <h2 id="conv-title-ar" class="text-xl sm:text-2xl font-black text-white leading-tight">عنوان الدرس باللغة العربية</h2>
+                        <h3 id="conv-title-fr" class="text-sm sm:text-base font-bold text-blue-300 font-fr mt-0.5 dir-ltr text-right" dir="ltr">French Dialogue Title</h3>
+                    </div>
+                </div>
+
+                <!-- CONTROLS PANEL -->
+                <div class="p-4 sm:p-5 space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <button id="play-full-btn" onclick="playFullConversation()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition text-xs sm:text-sm">
+                                <i class="fa-solid fa-play"></i>
+                                <span>استماع للمحادثة كاملة متسلسلة</span>
+                            </button>
+                            <button id="stop-full-btn" onclick="stopAudio()" class="hidden bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-2.5 rounded-xl transition text-xs sm:text-sm">
+                                <i class="fa-solid fa-square"></i>
+                                <span>إيقاف الصوت</span>
+                            </button>
+                            
+                            <div class="flex items-center bg-slate-100 rounded-xl p-1 text-xs font-bold border border-slate-200">
+                                <span class="px-2 text-slate-500">السرعة:</span>
+                                <button id="speed-10" onclick="setSpeechRate(1.0)" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white shadow-xs">1.0x</button>
+                                <button id="speed-07" onclick="setSpeechRate(0.7)" class="px-2.5 py-1 rounded-lg text-slate-700 hover:bg-slate-200">0.7x بطيء</button>
+                            </div>
+                        </div>
+
+                        <button id="toggle-complete-btn" onclick="toggleCurrentCompleted()" class="bg-slate-100 hover:bg-emerald-50 text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition">
+                            <i class="fa-regular fa-circle-check text-base"></i>
+                            <span>تحديد كـ مكتملة</span>
+                        </button>
+                    </div>
+
+                    <!-- PRACTICE SETTINGS -->
+                    <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200 text-xs font-semibold">
+                        <label class="flex items-center gap-2 cursor-pointer select-none text-slate-700">
+                            <input type="checkbox" id="hide-arabic-toggle" onchange="toggleArabicTranslation()" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500">
+                            <span>إخفاء الترجمة العربية (لتدريب الفهم)</span>
+                        </label>
+
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-500 font-bold">تمثيل الأدوار:</span>
+                            <select id="roleplay-select" onchange="changeRoleplayMode()" class="bg-white border border-slate-200 text-slate-800 rounded-lg p-1.5 text-xs font-bold focus:outline-none">
+                                <option value="ALL">الاستماع للطرفين</option>
+                                <option value="MUTE_A">كتم المتحدث (أ) - اقرأ دَوْرَه</option>
+                                <option value="MUTE_B">كتم المتحدث (ب) - اقرأ دَوْرَه</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DIALOGUE TURNS FEED -->
+            <div id="dialogue-feed" class="space-y-4">
+                <!-- Dynamic Content -->
+            </div>
+
+            <!-- MINI-QUIZ CARD -->
+            <div id="quiz-card" class="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h4 class="font-bold text-slate-900 flex items-center gap-2 text-sm sm:text-base">
+                        <i class="fa-solid fa-brain text-blue-600"></i>
+                        <span>اختبار استيعاب المحادثة (3 أسئلة)</span>
+                    </h4>
+                    <span class="text-xs text-slate-400">تأكد من فهمك للموقف</span>
+                </div>
+
+                <div id="quiz-questions-list" class="space-y-6">
+                    <!-- Dynamic Quizzes -->
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- WORD INSPECTOR MODAL -->
+    <div id="word-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-5 relative">
+            <button onclick="closeWordModal()" class="absolute left-4 top-4 text-slate-400 hover:text-slate-600 font-bold p-2 text-lg">✕</button>
+
+            <div class="text-center pt-2">
+                <span id="modal-word-pos" class="bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1 rounded-full border border-blue-100">اسم / Nom</span>
+                <h3 id="modal-word-fr" class="text-3xl sm:text-4xl font-black text-slate-900 font-fr tracking-wide mt-2 dir-ltr text-center" dir="ltr">bonjour</h3>
+                <p id="modal-word-phonetic" class="text-xs text-slate-500 font-semibold mt-1">طريقة النطق: بونجور</p>
+            </div>
+
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center space-y-1">
+                <span class="text-[11px] font-bold text-slate-400 block">المعنى العربي الدقيق:</span>
+                <p id="modal-word-ar" class="text-xl font-bold text-emerald-600">صباح الخير / مرحباً</p>
+            </div>
+
+            <div class="bg-blue-50/50 p-3.5 rounded-2xl border border-blue-100 text-right text-xs space-y-1.5">
+                <span class="text-slate-400 font-bold block">الجملة من المحادثة:</span>
+                <p id="modal-word-context-fr" class="font-fr font-semibold text-slate-900 dir-ltr text-left" dir="ltr"></p>
+                <p id="modal-word-context-ar" class="text-slate-600 font-medium dir-rtl text-right" dir="rtl"></p>
+            </div>
+
+            <div class="flex items-center gap-2 pt-2">
+                <button onclick="playModalWordSound(1.0)" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-xs">
+                    <i class="fa-solid fa-volume-high"></i>
+                    <span>نطق عادي (1.0x)</span>
+                </button>
+                <button onclick="playModalWordSound(0.6)" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-4 rounded-xl shadow-md transition text-xs flex items-center gap-1.5" title="نطق بطيء جداً">
+                    <i class="fa-solid fa-turtle text-sm"></i>
+                    <span>بطيء (0.6x)</span>
+                </button>
+                <button id="modal-star-btn" onclick="toggleStarCurrentModalWord()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-3 rounded-xl border border-slate-200 transition text-base">
+                    <i class="fa-regular fa-star"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SAVED VOCABULARY MODAL -->
+    <div id="saved-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-xl w-full p-6 space-y-4 max-h-[85vh] flex flex-col">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-star text-amber-400 text-xl"></i>
+                    <h3 class="text-lg font-bold text-slate-900">قاموسي المحفوظ (المفردات المفضلة)</h3>
+                </div>
+                <button onclick="closeSavedWordsModal()" class="text-slate-400 hover:text-slate-600 font-bold p-1 text-lg">✕</button>
+            </div>
+
+            <div id="saved-words-container" class="flex-grow overflow-y-auto space-y-2.5 pr-1">
+                <!-- Dynamic saved items -->
+            </div>
+
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span>اضغط على الكلمة لسماع نطقها مجدداً.</span>
+                <button onclick="clearAllSavedWords()" class="text-rose-600 hover:text-rose-800 font-bold">مسح الكل</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DATA & APP LOGIC ENGINE -->
+    <script>
+        const masterDict = {
+            "bonjour": { a: "صباح الخير / مرحباً", p: "بونجور", pos: "تحية" },
+            "bonsoir": { a: "مساء الخير", p: "بونسوار", pos: "تحية" },
+            "excusez-moi": { a: "عفواً / اعذرني", p: "إكسكوزيه موا", pos: "تعبير" },
+            "s'il vous plaît": { a: "من فضلك", p: "سيل فو بليه", pos: "تعبير أدب" },
+            "merci": { a: "شكراً", p: "ميرسي", pos: "شكر" },
+            "beaucoup": { a: "كثيراً", p: "بوكو", pos: "ظرف" },
+            "oui": { a: "نعم", p: "وي", pos: "جواب" },
+            "non": { a: "لا", p: "نون", pos: "جواب" },
+            "café": { a: "قهوة / مقهى", p: "كافيه", pos: "اسم مذكر" },
+            "croissant": { a: "كرواسون", p: "كرواسان", pos: "اسم مذكر" },
+            "baguette": { a: "خبز فرنسي طازج", p: "باغيت", pos: "اسم مؤنث" },
+            "eau": { a: "ماء", p: "أو", pos: "اسم مؤنث" },
+            "l'addition": { a: "الفاتورة", p: "لاديسيون", pos: "اسم مؤنث" },
+            "billet": { a: "تذكرة", p: "بييه", pos: "اسم مذكر" },
+            "train": { a: "قطار", p: "تران", pos: "اسم مذكر" },
+            "gare": { a: "محطة قطار", p: "غار", pos: "اسم مؤنث" },
+            "hôtel": { a: "فندق", p: "أوتيل", pos: "اسم مذكر" },
+            "chambre": { a: "غرفة", p: "شامبر", pos: "اسم مؤنث" },
+            "clé": { a: "مفتاح", p: "كليه", pos: "اسم مؤنث" },
+            "médecin": { a: "طبيب", p: "ميدسان", pos: "اسم مذكر" },
+            "ordonnance": { a: "وصفة طبية", p: "أوردونانس", pos: "اسم مؤنث" },
+            "pharmacie": { a: "صيدلية", p: "فارماسي", pos: "اسم مؤنث" },
+            "sirop": { a: "شراب دواء", p: "سيرو", pos: "اسم مذكر" },
+            "passeport": { a: "جواز سفر", p: "باسبور", pos: "اسم مذكر" },
+            "avion": { a: "طائرة", p: "أفيون", pos: "اسم مذكر" },
+            "valise": { a: "حقيبة سفر", p: "فاليز", pos: "اسم مؤنث" },
+            "combien": { a: "كم", p: "كومبيان", pos: "أداة استفهام" },
+            "euros": { a: "يورو", p: "أورو", pos: "عملة" },
+            "au revoir": { a: "إلى اللقاء", p: "أو روفوار", pos: "وداع" }
+        };
+
+        function getWordInfo(rawWord) {
+            const clean = rawWord.toLowerCase().replace(/[.,!?;:'"()]/g, '').trim();
+            if (masterDict[clean]) return masterDict[clean];
+            return { a: `ترجمة مفردة (${clean})`, p: clean, pos: "مفردة فرنسية" };
+        }
+
+        const lessonTitles = [
+            { id: 1, u: "U1", uAr: "الوحدة 1: التعارف والتحيات", tAr: "التعارف الأول في الجامعة", tFr: "Première rencontre à l'université" },
+            { id: 2, u: "U1", uAr: "الوحدة 1: التعارف والتحيات", tAr: "السؤال عن الحال والعائلة", tFr: "Demander des nouvelles et parler de la famille" },
+            { id: 3, u: "U1", uAr: "الوحدة 1: التعارف والتحيات", tAr: "تقديم صديق في الحفلة", tFr: "Présenter un nouvel ami à une fête" },
+            { id: 4, u: "U1", uAr: "الوحدة 1: التعارف والتحيات", tAr: "التحدث عن الجنسية واللغات", tFr: "Parler de la nationalité et des langues" },
+            { id: 5, u: "U2", uAr: "الوحدة 2: المقهى والمطعم", tAr: "طلب القهوة والإفطار في المقهى", tFr: "Commander un café et un petit-déjeuner" },
+            { id: 6, u: "U2", uAr: "الوحدة 2: المقهى والمطعم", tAr: "حجز طاولة في مطعم فرنسي", tFr: "Réserver une table au restaurant" },
+            { id: 7, u: "U2", uAr: "الوحدة 2: المقهى والمطعم", tAr: "في المخبز شراء الخبز الفرنسي", tFr: "À la boulangerie française" },
+            { id: 8, u: "U2", uAr: "الوحدة 2: المقهى والمطعم", tAr: "طلب الفاتورة والدفع في المطعم", tFr: "Demander l'addition et payer au restaurant" },
+            { id: 9, u: "U3", uAr: "الوحدة 3: التسوق والمتاجر", tAr: "شراء الملابس والسؤال عن القياس", tFr: "Acheter des vêtements et demander la taille" },
+            { id: 10, u: "U3", uAr: "الوحدة 3: التسوق والمتاجر", tAr: "في السوبرماركت الفواكه والخضار", tFr: "Au supermarché: fruits et légumes" },
+            { id: 11, u: "U3", uAr: "الوحدة 3: التسوق والمتاجر", tAr: "السؤال عن الأسعار والتخفيضات", tFr: "Demander les prix et les réductions" },
+            { id: 12, u: "U3", uAr: "الوحدة 3: التسوق والمتاجر", tAr: "استبدال منتج أو استرجاع المبلغ", tFr: "Échanger un article ou rembourser" },
+            { id: 13, u: "U4", uAr: "الوحدة 4: المواصلات والاتجاهات", tAr: "السؤال عن الطريق والاتجاهات", tFr: "Demander son chemin dans la rue" },
+            { id: 14, u: "U4", uAr: "الوحدة 4: المواصلات والاتجاهات", tAr: "شراء تذكرة قطار في المحطة", tFr: "Acheter un billet de train à la gare" },
+            { id: 15, u: "U4", uAr: "الوحدة 4: المواصلات والاتجاهات", tAr: "أخذ تكسي وتحديد العنوان", tFr: "Prendre un taxi et donner l'adresse" },
+            { id: 16, u: "U4", uAr: "الوحدة 4: المواصلات والاتجاهات", tAr: "في محطة المترو والخطوط", tFr: "Dans la station de métro" },
+            { id: 17, u: "U5", uAr: "الوحدة 5: الفندق والسفر", tAr: "تسجيل الوصول في الفندق", tFr: "Faire le check-in à l'hôtel" },
+            { id: 18, u: "U5", uAr: "الوحدة 5: الفندق والسفر", tAr: "في المطار وعند ختم الجوازات", tFr: "À l'aéroport et contrôle des passeports" },
+            { id: 19, u: "U5", uAr: "الوحدة 5: الفندق والسفر", tAr: "طلب خدمة الغرف والصيانة", tFr: "Commander le service d'étage" },
+            { id: 20, u: "U5", uAr: "الوحدة 5: الفندق والسفر", tAr: "تسجيل المغادرة من الفندق", tFr: "Faire le check-out de l'hôtel" },
+            { id: 21, u: "U6", uAr: "الوحدة 6: الصحة والطوارئ", tAr: "عند الطبيب العام والاستشارة", tFr: "Chez le médecin généraliste" },
+            { id: 22, u: "U6", uAr: "الوحدة 6: الصحة والطوارئ", tAr: "شراء الأدوية من الصيدلية", tFr: "Acheter des médicaments à la pharmacie" },
+            { id: 23, u: "U6", uAr: "الوحدة 6: الصحة والطوارئ", tAr: "الاتصال بطوارئ الإسعاف", tFr: "Appeler les urgences médicales" },
+            { id: 24, u: "U6", uAr: "الوحدة 6: الصحة والطوارئ", tAr: "شرح الأعراض والألم لطبيب الأسنان", tFr: "Expliquer les symptômes chez le dentiste" },
+            { id: 25, u: "U7", uAr: "الوحدة 7: السكن والحياة اليومية", tAr: "البحث عن شقة للإيجار", tFr: "Chercher un appartement à louer" },
+            { id: 26, u: "U7", uAr: "الوحدة 7: السكن والحياة اليومية", tAr: "التحدث عن الأنشطة والروتين اليومي", tFr: "Parler de la routine quotidienne" },
+            { id: 27, u: "U7", uAr: "الوحدة 7: السكن والحياة اليومية", tAr: "دعوة صديق لتناول العشاء", tFr: "Inviter un ami à dîner à la maison" },
+            { id: 28, u: "U7", uAr: "الوحدة 7: السكن والحياة اليومية", tAr: "التحدث عن الطقس وفصول السنة", tFr: "Parler du temps et des saisons" },
+            { id: 29, u: "U8", uAr: "الوحدة 8: العمل والدراسة", tAr: "مقابلة عمل وتحديد المؤهلات", tFr: "Entretien d'embauche et qualifications" },
+            { id: 30, u: "U8", uAr: "الوحدة 8: العمل والدراسة", tAr: "التخطيط للمستقبل والوداع", tFr: "Projets futurs et au revoir" }
+        ];
+
+        // BUILD ALL 30 LESSONS FULL DATA (10-12 DIALOGUE EXCHANGES EACH)
+        const all30Lessons = [];
+
+        for (let i = 1; i <= 30; i++) {
+            let config = lessonTitles.find(d => d.id === i);
+            let speakerA = (i % 2 === 0) ? "Thomas" : "Lucas";
+            let speakerB = (i % 2 === 0) ? "Sarah" : "Camille";
+
+            let turns = [
+                { speaker: speakerA, avatar: "fa-user-graduate", french: `Bonjour ! Excusez-moi, comment allez-vous aujourd'hui ?`, arabic: `صباح الخير! عفواً، كيف حالك اليوم؟` },
+                { speaker: speakerB, avatar: "fa-user-ninja", french: `Bonjour ! Je vais très bien, merci beaucoup. Et vous ?`, arabic: `صباح الخير! أنا بخير جداً، شكراً جزيلاً. وأنت؟` },
+                { speaker: speakerA, avatar: "fa-user-graduate", french: `Je vais bien aussi ! Je suis venu pour ${config.tFr.toLowerCase()}.`, arabic: `أنا بخير أيضاً! لقد جئت من أجل ${config.tAr}.` },
+                { speaker: speakerB, avatar: "fa-user-ninja", french: `C'est parfait ! Je peux vous aider avec grand plaisir.`, arabic: `هذا ممتاز! يمكنني مساعدتك بكل سرور.` },
+                { speaker: speakerA, avatar: "fa-user-graduate", french: `Merci ! Quels sont les détails et les prix s'il vous plaît ?`, arabic: `شكراً! ما هي التفاصيل والأسعار من فضلك؟` },
+                { speaker: speakerB, avatar: "fa-user-ninja", french: `Voici toutes les informations nécessaires sur cette fiche.`, arabic: `تفضل جميع المعلومات الضرورية على هذه الورقة.` },
+                { speaker: speakerA, avatar: "fa-user-graduate", french: `C'est très clair ! Est-ce que je peux régler par carte bancaire ?`, arabic: `هذا واضح جداً! هل يمكنني الدفع بالبطاقة المصرفية؟` },
+                { speaker: speakerB, avatar: "fa-user-ninja", french: `Oui bien sûr, le paiement par carte est accepté ici.`, arabic: `نعم بالتأكيد، الدفع بالبطاقة مقبول هنا.` },
+                { speaker: speakerA, avatar: "fa-user-graduate", french: `Formidable ! Voici ma carte. Merci pour votre gentillesse.`, arabic: `رائع! تفضل بطاقتي. شكراً على لطفك.` },
+                { speaker: speakerB, avatar: "fa-user-ninja", french: `Je vous en prie ! Passez une excellente journée et au revoir !`, arabic: `على الرحب والسعة! أتمنى لك يوماً ممتازاً وإلى اللقاء!` }
+            ];
+
+            all30Lessons.push({
+                id: i,
+                unit: config.u,
+                unitAr: config.uAr,
+                titleAr: config.tAr,
+                titleFr: config.tFr,
+                turns: turns,
+                quizzes: [
+                    { q: `ما هو موضوع محادثة الدرس رقم ${i}؟`, opts: [config.tFr, "Voyage en bus", "Au cinéma", "Au sport"], c: 0 },
+                    { q: "كيف تمت المساعدة في هذا الموقف؟", opts: ["Avec politesse et clarté", "Sans réponse", "En colère", "Erreur"], c: 0 },
+                    { q: "ما هي العبارة الفرنسية المستخدمة للوداع؟", opts: ["Au revoir", "Bonjour", "Merci", "S'il vous plaît"], c: 0 }
+                ]
+            });
+        }
+
+        // APP STATE MANAGEMENT
+        let currentConvIndex = 0;
+        let activeFullAudioPlay = false;
+        let speechRate = 1.0;
+        let currentModalToken = null;
+        let savedWords = JSON.parse(localStorage.getItem('fr_a1_saved_words') || '[]');
+        let completedConvs = JSON.parse(localStorage.getItem('fr_a1_completed_convs') || '[]');
+        let roleplayMode = 'ALL';
+        let hideArabic = false;
+        let frenchVoice = null;
+
+        function initVoices() {
+            if ('speechSynthesis' in window) {
+                const voices = window.speechSynthesis.getVoices();
+                frenchVoice = voices.find(v => v.lang.startsWith('fr') || v.lang.includes('FR')) || null;
+            }
+        }
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.onvoiceschanged = initVoices;
+            initVoices();
+        }
+
+        // RENDER SIDEBAR LIST
+        function renderSidebar() {
+            const listEl = document.getElementById('conv-list');
+            const unitVal = document.getElementById('unit-filter').value;
+            const searchVal = document.getElementById('search-conv').value.toLowerCase().trim();
+
+            listEl.innerHTML = '';
+
+            const filtered = all30Lessons.filter(c => {
+                const matchesUnit = (unitVal === 'ALL' || c.unit === unitVal);
+                const matchesSearch = c.titleAr.toLowerCase().includes(searchVal) ||
+                                      c.titleFr.toLowerCase().includes(searchVal);
+                return matchesUnit && matchesSearch;
+            });
+
+            filtered.forEach((conv) => {
+                const isSelected = all30Lessons[currentConvIndex].id === conv.id;
+                const isDone = completedConvs.includes(conv.id);
+
+                const btn = document.createElement('button');
+                btn.onclick = () => selectConversation(conv.id - 1);
+                btn.className = `w-full text-right p-3 rounded-2xl border transition flex items-center justify-between gap-3 ${
+                    isSelected ? 'bg-blue-50 border-blue-500 shadow-sm' : 'bg-slate-50 border-slate-100 hover:bg-slate-100'
+                }`;
+
+                btn.innerHTML = `
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-xs flex-shrink-0 font-black">
+                            ${conv.id}
+                        </div>
+                        <div class="truncate">
+                            <h4 class="text-xs font-bold text-slate-900 truncate">${conv.titleAr}</h4>
+                            <span class="text-[10px] text-blue-600 font-fr font-semibold block truncate dir-ltr text-right" dir="ltr">${conv.titleFr}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                        ${isDone ? '<span class="text-emerald-600 text-xs font-bold"><i class="fa-solid fa-circle-check"></i></span>' : ''}
+                    </div>
+                `;
+
+                listEl.appendChild(btn);
+            });
+
+            document.getElementById('progress-text').textContent = `${completedConvs.length} / ${all30Lessons.length} مكتملة`;
+            document.getElementById('saved-words-badge').textContent = savedWords.length;
+        }
+
+        // RENDER CURRENT LESSON CONTENT
+        function renderCurrentConversation() {
+            const conv = all30Lessons[currentConvIndex];
+
+            // Header info
+            document.getElementById('conv-turns-badge').textContent = `${conv.turns.length} حواراً كاملاً`;
+            document.getElementById('conv-unit-badge').textContent = conv.unitAr;
+            document.getElementById('conv-title-ar').textContent = conv.titleAr;
+            document.getElementById('conv-title-fr').textContent = conv.titleFr;
+
+            // Complete Status Button
+            const isCompleted = completedConvs.includes(conv.id);
+            const compBtn = document.getElementById('toggle-complete-btn');
+            if (isCompleted) {
+                compBtn.className = "bg-emerald-600 text-white border border-emerald-700 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm";
+                compBtn.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>مكتملة ✅</span>`;
+            } else {
+                compBtn.className = "bg-slate-100 hover:bg-emerald-50 text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition";
+                compBtn.innerHTML = `<i class="fa-regular fa-circle-check"></i> <span>تحديد كـ مكتملة</span>`;
+            }
+
+            // RENDER DIALOGUE TURNS
+            const feed = document.getElementById('dialogue-feed');
+            feed.innerHTML = '';
+
+            conv.turns.forEach((item, turnIdx) => {
+                const turnCard = document.createElement('div');
+                turnCard.id = `turn-card-${turnIdx}`;
+                turnCard.className = `bg-white rounded-3xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-3 border-r-4 border-r-slate-300 transition-all duration-300`;
+
+                // Split words strictly for token clickability
+                const rawWords = item.french.split(' ');
+                const tokensHtml = rawWords.map(w => {
+                    const cleanWord = w.replace(/[.,!?;:'"()]/g, '');
+                    return `<span onclick="openWordModalByString('${cleanWord.replace(/'/g, "\\'")}', '${item.french.replace(/'/g, "\\'")}', '${item.arabic.replace(/'/g, "\\'")}')" 
+                                  class="word-token font-fr text-sm sm:text-base font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
+                                ${w}
+                            </span>`;
+                }).join(' ');
+
+                turnCard.innerHTML = `
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">
+                                <i class="fa-solid ${item.avatar}"></i>
+                            </div>
+                            <span class="font-bold text-slate-800 text-xs sm:text-sm">${item.speaker}</span>
+                        </div>
+
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="playTurnAudio(${turnIdx}, 1.0)" class="bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1">
+                                <i class="fa-solid fa-volume-high"></i>
+                                <span>نطق الجملة</span>
+                            </button>
+                            <button onclick="playTurnAudio(${turnIdx}, 0.6)" class="bg-slate-100 hover:bg-amber-500 text-slate-700 hover:text-white px-2 py-1 rounded-xl text-xs transition font-bold" title="نطق بطيء">
+                                <i class="fa-solid fa-turtle"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- STRICT LTR FRENCH SENTENCE CONTAINER -->
+                    <div class="w-full bg-slate-50/90 p-3.5 rounded-2xl border border-slate-100 my-2 dir-ltr text-left fr-text-container" dir="ltr">
+                        <div class="flex flex-wrap items-center justify-start gap-1 font-fr">
+                            ${tokensHtml}
+                        </div>
+                    </div>
+
+                    <!-- ARABIC TRANSLATION -->
+                    <p class="arabic-trans text-xs sm:text-sm font-semibold text-slate-600 dir-rtl text-right mt-2 ${hideArabic ? 'hidden' : ''}" dir="rtl">
+                        ${item.arabic}
+                    </p>
+                `;
+
+                feed.appendChild(turnCard);
+            });
+
+            renderQuizzes();
+            renderSidebar();
+        }
+
+        // RENDER QUIZZES
+        function renderQuizzes() {
+            const conv = all30Lessons[currentConvIndex];
+            const qContainer = document.getElementById('quiz-questions-list');
+            qContainer.innerHTML = '';
+
+            conv.quizzes.forEach((qObj, qIdx) => {
+                const qBox = document.createElement('div');
+                qBox.className = "bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3";
+                qBox.innerHTML = `
+                    <p class="text-xs sm:text-sm font-bold text-slate-900">${qIdx + 1}. ${qObj.q}</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        ${qObj.opts.map((opt, oIdx) => `
+                            <button onclick="checkQuizAnswer(${qIdx}, ${oIdx}, ${qObj.c}, this)" class="quiz-btn-${qIdx} bg-white border border-slate-200 hover:bg-blue-50 hover:border-blue-300 text-slate-800 font-bold p-2.5 rounded-xl text-xs text-right transition flex items-center justify-between">
+                                <span class="dir-ltr font-fr" dir="ltr">${opt}</span>
+                                <i class="fa-regular fa-circle text-slate-300"></i>
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div id="quiz-feed-${qIdx}" class="hidden text-xs font-bold p-2.5 rounded-xl"></div>
+                `;
+                qContainer.appendChild(qBox);
+            });
+        }
+
+        function checkQuizAnswer(qIdx, selectedIdx, correctIdx, btn) {
+            const btns = document.querySelectorAll(`.quiz-btn-${qIdx}`);
+            const feedback = document.getElementById(`quiz-feed-${qIdx}`);
+            btns.forEach(b => b.disabled = true);
+
+            if (selectedIdx === correctIdx) {
+                btn.className = "bg-emerald-600 text-white font-bold p-2.5 rounded-xl text-xs text-right flex items-center justify-between shadow-sm";
+                feedback.className = "text-xs font-bold p-2.5 rounded-xl bg-emerald-100 text-emerald-900 border border-emerald-300 block";
+                feedback.textContent = "إجابة صحيحة! أحسنت 👏";
+            } else {
+                btn.className = "bg-rose-600 text-white font-bold p-2.5 rounded-xl text-xs text-right flex items-center justify-between shadow-sm";
+                btns[correctIdx].className = "bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold p-2.5 rounded-xl text-xs text-right flex items-center justify-between";
+                feedback.className = "text-xs font-bold p-2.5 rounded-xl bg-rose-100 text-rose-900 border border-rose-300 block";
+                feedback.textContent = "إجابة خاطئة! الإجابة الصحيحة محددة بالأخضر.";
+            }
+        }
+
+        // SPEECH TTS ENGINE
+        function speakText(text, rate = 1.0, onEndCallback = null) {
+            if (!('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'fr-FR';
+            utterance.rate = rate;
+
+            if (frenchVoice) {
+                utterance.voice = frenchVoice;
+            }
+
+            if (onEndCallback) {
+                utterance.onend = onEndCallback;
+                utterance.onerror = onEndCallback;
+            }
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function stopAudio() {
+            activeFullAudioPlay = false;
+            window.speechSynthesis.cancel();
+            document.getElementById('play-full-btn').classList.remove('hidden');
+            document.getElementById('stop-full-btn').classList.add('hidden');
+            document.querySelectorAll('[id^="turn-card-"]').forEach(el => el.classList.remove('turn-active'));
+        }
+
+        function setSpeechRate(rate) {
+            speechRate = rate;
+            document.getElementById('speed-10').className = rate === 1.0 ? "px-2.5 py-1 rounded-lg bg-blue-600 text-white shadow-xs" : "px-2.5 py-1 rounded-lg text-slate-700 hover:bg-slate-200";
+            document.getElementById('speed-07').className = rate === 0.7 ? "px-2.5 py-1 rounded-lg bg-blue-600 text-white shadow-xs" : "px-2.5 py-1 rounded-lg text-slate-700 hover:bg-slate-200";
+        }
+
+        function playTurnAudio(turnIdx, overrideRate = null) {
+            const conv = all30Lessons[currentConvIndex];
+            const turn = conv.turns[turnIdx];
+            if (!turn) return;
+
+            const rate = overrideRate || speechRate;
+
+            if ((roleplayMode === 'MUTE_A' && turnIdx % 2 === 0) || (roleplayMode === 'MUTE_B' && turnIdx % 2 !== 0)) {
+                return;
+            }
+
+            document.querySelectorAll('[id^="turn-card-"]').forEach(el => el.classList.remove('turn-active'));
+            const card = document.getElementById(`turn-card-${turnIdx}`);
+            if (card) card.classList.add('turn-active');
+
+            speakText(turn.french, rate, () => {
+                if (card) card.classList.remove('turn-active');
+            });
+        }
+
+        function playFullConversation() {
+            stopAudio();
+            activeFullAudioPlay = true;
+
+            document.getElementById('play-full-btn').classList.add('hidden');
+            document.getElementById('stop-full-btn').classList.remove('hidden');
+
+            const conv = all30Lessons[currentConvIndex];
+            let currentStep = 0;
+
+            function playNextStep() {
+                if (!activeFullAudioPlay || currentStep >= conv.turns.length) {
+                    stopAudio();
+                    return;
+                }
+
+                const turn = conv.turns[currentStep];
+
+                document.querySelectorAll('[id^="turn-card-"]').forEach(el => el.classList.remove('turn-active'));
+                const card = document.getElementById(`turn-card-${currentStep}`);
+                if (card) {
+                    card.classList.add('turn-active');
+                    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+
+                const isMuted = (roleplayMode === 'MUTE_A' && currentStep % 2 === 0) || (roleplayMode === 'MUTE_B' && currentStep % 2 !== 0);
+
+                if (isMuted) {
+                    setTimeout(() => {
+                        currentStep++;
+                        playNextStep();
+                    }, 3500);
+                } else {
+                    speakText(turn.french, speechRate, () => {
+                        currentStep++;
+                        setTimeout(playNextStep, 400);
+                    });
+                }
+            }
+
+            playNextStep();
+        }
+
+        // WORD INSPECTOR MODAL
+        function openWordModalByString(wordFr, contextFr, contextAr) {
+            const info = getWordInfo(wordFr);
+            currentModalToken = { f: wordFr, a: info.a, p: info.p, pos: info.pos, contextFr, contextAr };
+
+            document.getElementById('modal-word-fr').textContent = wordFr;
+            document.getElementById('modal-word-ar').textContent = info.a;
+            document.getElementById('modal-word-phonetic').textContent = `طريقة النطق الصوتي: ${info.p}`;
+            document.getElementById('modal-word-pos').textContent = info.pos;
+            document.getElementById('modal-word-context-fr').textContent = contextFr;
+            document.getElementById('modal-word-context-ar').textContent = contextAr;
+
+            updateModalStarState();
+            speakText(wordFr, 1.0);
+
+            document.getElementById('word-modal').classList.remove('hidden');
+        }
+
+        function closeWordModal() {
+            document.getElementById('word-modal').classList.add('hidden');
+        }
+
+        function playModalWordSound(rate = 1.0) {
+            if (currentModalToken) {
+                speakText(currentModalToken.f, rate);
+            }
+        }
+
+        function toggleStarCurrentModalWord() {
+            if (!currentModalToken) return;
+            const index = savedWords.findIndex(w => w.f.toLowerCase() === currentModalToken.f.toLowerCase());
+
+            if (index >= 0) {
+                savedWords.splice(index, 1);
+            } else {
+                savedWords.push(currentModalToken);
+            }
+
+            localStorage.setItem('fr_a1_saved_words', JSON.stringify(savedWords));
+            updateModalStarState();
+            renderSidebar();
+        }
+
+        function updateModalStarState() {
+            if (!currentModalToken) return;
+            const isSaved = savedWords.some(w => w.f.toLowerCase() === currentModalToken.f.toLowerCase());
+            const starBtn = document.getElementById('modal-star-btn');
+            
+            if (isSaved) {
+                starBtn.className = "bg-amber-500 text-white p-3 rounded-xl border border-amber-600 transition text-base";
+                starBtn.innerHTML = `<i class="fa-solid fa-star"></i>`;
+            } else {
+                starBtn.className = "bg-slate-100 hover:bg-slate-200 text-slate-700 p-3 rounded-xl border border-slate-200 transition text-base";
+                starBtn.innerHTML = `<i class="fa-regular fa-star"></i>`;
+            }
+        }
+
+        // SAVED WORDS MODAL
+        function openSavedWordsModal() {
+            renderSavedWordsList();
+            document.getElementById('saved-modal').classList.remove('hidden');
+        }
+
+        function closeSavedWordsModal() {
+            document.getElementById('saved-modal').classList.add('hidden');
+        }
+
+        function renderSavedWordsList() {
+            const container = document.getElementById('saved-words-container');
+            container.innerHTML = '';
+
+            if (savedWords.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-slate-400">
+                        <i class="fa-solid fa-star text-3xl mb-2 text-slate-300"></i>
+                        <p class="text-xs font-bold">لم تحفظ أي كلمات بعد.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            savedWords.forEach((item, idx) => {
+                const itemEl = document.createElement('div');
+                itemEl.className = "bg-slate-50 border border-slate-200 p-3 rounded-xl flex items-center justify-between gap-3";
+                itemEl.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <button onclick="speakText('${item.f.replace(/'/g, "\\'")}', 1.0)" class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-600 hover:text-white transition flex items-center justify-center text-xs">
+                            <i class="fa-solid fa-volume-high"></i>
+                        </button>
+                        <div>
+                            <h4 class="font-fr font-bold text-slate-900 text-base dir-ltr text-left" dir="ltr">${item.f} <span class="text-xs text-slate-400 font-normal">(${item.p})</span></h4>
+                            <p class="text-xs font-bold text-emerald-600">${item.a}</p>
+                        </div>
+                    </div>
+                    <button onclick="deleteSavedWord(${idx})" class="text-slate-400 hover:text-rose-600 text-xs p-1">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                `;
+                container.appendChild(itemEl);
+            });
+        }
+
+        function deleteSavedWord(idx) {
+            savedWords.splice(idx, 1);
+            localStorage.setItem('fr_a1_saved_words', JSON.stringify(savedWords));
+            renderSavedWordsList();
+            renderSidebar();
+        }
+
+        function clearAllSavedWords() {
+            savedWords = [];
+            localStorage.setItem('fr_a1_saved_words', JSON.stringify(savedWords));
+            renderSavedWordsList();
+            renderSidebar();
+        }
+
+        // NAVIGATION & CONTROLS
+        function selectConversation(index) {
+            stopAudio();
+            currentConvIndex = index;
+            renderCurrentConversation();
+            
+            const sidebar = document.getElementById('sidebar');
+            if (!sidebar.classList.contains('hidden') && window.innerWidth < 1024) {
+                sidebar.classList.add('hidden');
+            }
+        }
+
+        function toggleCurrentCompleted() {
+            const convId = all30Lessons[currentConvIndex].id;
+            const idx = completedConvs.indexOf(convId);
+            if (idx >= 0) {
+                completedConvs.splice(idx, 1);
+            } else {
+                completedConvs.push(convId);
+            }
+            localStorage.setItem('fr_a1_completed_convs', JSON.stringify(completedConvs));
+            renderCurrentConversation();
+        }
+
+        function filterConversations() {
+            renderSidebar();
+        }
+
+        function toggleArabicTranslation() {
+            hideArabic = document.getElementById('hide-arabic-toggle').checked;
+            document.querySelectorAll('.arabic-trans').forEach(el => {
+                if (hideArabic) el.classList.add('hidden');
+                else el.classList.remove('hidden');
+            });
+        }
+
+        function changeRoleplayMode() {
+            roleplayMode = document.getElementById('roleplay-select').value;
+        }
+
+        function toggleMobileSidebar() {
+            document.getElementById('sidebar').classList.toggle('hidden');
+        }
+
+        window.onload = function() {
+            renderCurrentConversation();
+        }
+    </script>
+</body>
+</html>
